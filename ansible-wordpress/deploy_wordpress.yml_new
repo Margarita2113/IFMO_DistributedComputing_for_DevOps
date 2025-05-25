@@ -14,14 +14,37 @@
         update_cache: yes
         cache_valid_time: 3600  # Обновление кеша раз в час
 
-    - name: Установить необходимые пакеты
+    - name: Установить необходимые пакеты для docker
       apt:
         name:
-          - docker.io
-          - docker-compose
-          - python3
+          - python3-pymysql
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
         state: present
-       
+    
+
+    - name: Добавление GPG-ключа Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Добавление репозитория Docker
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+
+    - name: Устанавливаем docker plugin
+      apt:
+        name: 
+          - docker-compose-plugin
+          - docker-ce-cli
+          - docker-ce
+        state: present
+        update_cache: true
+ 
 
     - name: Create WordPress directory
       file:
@@ -82,10 +105,11 @@
             db_slave:
 
     - name: Start MySQL services
-      command: docker-compose up -d db_master db_slave
-      args:
-        chdir: "{{ wordpress_dir }}"
-
+      community.docker.docker_compose_v2:
+        project_src: "{{ wordpress_dir }}"
+        services:
+          - db_master
+          - db_slave
       
     - name: Wait for MySQL master to be ready
       wait_for:
@@ -131,39 +155,18 @@
     - name: Debug master_status
       debug:
         var: master_status
-
-    - name: Setup replication on Replica
-      mysql_query:
-        login_port: 3307
+    - name: Задать данные для репликации
+      mysql_replication:
         login_user: "root"
         login_password: "{{ db_password }}"
-        query: >-
-          CHANGE MASTER TO
-          MASTER_HOST='db_master',
-          MASTER_USER='replication',
-          MASTER_PASSWORD='replication',
-          MASTER_LOG_FILE='{{ master_status.query_result[0][0].File }}',
-          MASTER_LOG_POS={{ master_status.query_result[0][0].Position }};
-      when: master_status.query_result is defined and master_status.query_result | length > 0
-
-    - name: Ensure MySQL binary logging is enabled
-      lineinfile:
-        path: /etc/mysql/my.cnf
-        regexp: '^(log_bin|binlog_format)'
-        line: "{{ item }}"
-        state: present
-      loop:
-        - "log_bin=mysql-bin"
-        - "binlog_format=row"  
-     
-    - name: Ensure MySQL log directory exists
-      file:
-        path: /var/log/mysql
-        state: directory
-        mode: '0755'
-        owner: mysql
-        group: mysql
-
+        login_port: 3307
+        mode: changeprimary
+        master_host: db_master
+        master_user: replication
+        master_password: replication
+        master_log_file: "{{ master_status.query_result[0][0].File }}"
+        master_log_pos: "{{ master_status.query_result[0][0].Position }}"
+    
     - name: Start Slave on Replica
       mysql_query:
         login_port: 3307
@@ -171,10 +174,11 @@
         login_password: "{{ db_password }}"
         query: "START SLAVE;"
 
-    - name: Start WordPress 
-      command: docker-compose up -d wordpress
-      args:
-        chdir: "{{ wordpress_dir }}"
+    - name: Start WordPress
+      community.docker.docker_compose_v2:
+        project_src: "{{ wordpress_dir }}"
+        services:
+          - wordpress
 
     - name: Wait for WordPress to be accessible
       wait_for:
