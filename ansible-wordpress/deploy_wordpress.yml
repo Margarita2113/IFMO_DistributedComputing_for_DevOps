@@ -9,43 +9,6 @@
     wordpress_dir: "/home/{{ ansible_ssh_user }}/wordpress"
     
   tasks:
-    - name: Обновить пакеты (Ubuntu)
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600  # Обновление кеша раз в час
-
-    - name: Установить необходимые пакеты для docker
-      apt:
-        name:
-          - python3-pymysql
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - software-properties-common
-        state: present
-    
-
-    - name: Добавление GPG-ключа Docker
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
-
-    - name: Добавление репозитория Docker
-      apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
-        state: present
-
-
-    - name: Устанавливаем docker plugin
-      apt:
-        name: 
-          - docker-compose-plugin
-          - docker-ce-cli
-          - docker-ce
-        state: present
-        update_cache: true
- 
-
     - name: Create WordPress directory
       file:
         path: "{{ wordpress_dir }}"
@@ -71,6 +34,8 @@
               command: --server-id=1 --log-bin=mysql-bin --binlog-format=row
               volumes:
                 - db_master:/var/lib/mysql
+              networks:
+                - local_network
             db_slave:
               image: mysql:5.7
               restart: always
@@ -84,6 +49,8 @@
               command: --server-id=2 --log-bin=mysql-bin --binlog-format=row
               volumes:
                 - db_slave:/var/lib/mysql
+              networks:
+                - local_network          
             wordpress:
               image: wordpress:latest
               restart: always
@@ -98,7 +65,12 @@
                 WORDPRESS_DB_PASSWORD: "{{ db_password }}"
               volumes:
                 - wordpress:/var/www/html
-
+              networks:
+                - local_network
+          
+          networks:
+            local_network:
+              external: true
           volumes:
             db_master:
             wordpress:

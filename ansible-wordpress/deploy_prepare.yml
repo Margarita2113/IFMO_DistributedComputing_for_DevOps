@@ -1,0 +1,43 @@
+---
+- name: Подготовка сервера для инсталяции
+  hosts: all
+  become: yes
+    
+  tasks:
+    - name: Обновить пакеты (Ubuntu)
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600  # Обновление кеша раз в час
+
+    - name: Установить необходимые пакеты для docker
+      apt:
+        name:
+          - python3-pymysql
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    - name: Добавление GPG-ключа Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Добавление репозитория Docker
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+    - name: Устанавливаем docker plugin
+      apt:
+        name: 
+          - docker-compose-plugin
+          - docker-ce-cli
+          - docker-ce
+        state: present
+        update_cache: true
+    - name: Create shared Docker network
+      docker_network:
+        name: local_network
+        state: present

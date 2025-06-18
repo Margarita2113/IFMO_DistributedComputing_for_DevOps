@@ -12,12 +12,16 @@
 **Установка**
 
 - Клонируйте репозиторий на ваш локальный или удаленный сервер, используя следующую команду:
-   git clone [https://github.com/Margarita2113/IFMO_DistributedComputing_for_DevOps/tree/Lab2]
+   git clone [https://github.com/Margarita2113/IFMO_DistributedComputing_for_DevOps/tree/Lab3]
 - cd ansible-wordpress
-- Запуск плейбука
-Для запуска плейбука используйте команду Ansible:
+- Заполните файл inventory.ini
+- Для подготовки серверов к инсталяции запустите плейбук deploy_prepare.yml.
+  *ansible-playbook -i inventory.ini deploy_prepare.yml*
+- Для инсталяции wordpress используйте плейбук deploy_wordpress.yml
+  *ansible-playbook -i inventory.ini deploy_wordpress.yml*
+- Для настройки мониторинга используйте плейбук deploy_prometheus.yml
+  *ansible-playbook -i inventory.ini deploy_prometheus.yml*
 
-*ansible-playbook -i inventory.ini deploy_wordpress.yml_new*
 
 **Описание задач**
 

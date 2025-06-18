@@ -1,0 +1,120 @@
+---
+- name: Развертывание Prometheus через Docker Compose
+  hosts: prometheus_servers
+  become: yes
+  vars:
+    db_user: "wordpress"
+    db_password: "wordpress"
+    exporter_user: "exporter"
+    exporter_password: "exporter"
+    grafana_password: "grafana"
+    compose_file_path: "/home/{{ ansible_ssh_user }}/prometheus/docker-compose.yml"
+    prometheus_dir: "/home/{{ ansible_ssh_user }}/prometheus"
+
+  tasks:
+    - name: Проверка, что Docker запущен
+      service:
+        name: docker
+        state: started
+
+    - name: Создание директории для Prometheus
+      file:
+        path: "{{ prometheus_dir }}"
+        state: directory
+
+    - name: Создание конфигурационного файла Prometheus
+      copy:
+        dest: "{{ prometheus_dir }}/prometheus.yml"
+        content: |
+          global:
+            scrape_interval: 15s
+          scrape_configs:
+            - job_name: 'prometheus'
+              static_configs:
+                - targets: ['localhost:9090']
+            - job_name: 'mysql_master'
+              static_configs:
+                - targets: ['mysql_exporter_master:9104']
+            - job_name: 'mysql_slave'
+              static_configs:
+                - targets: ['mysql_exporter_slave:9104']          
+          
+
+    - name: Создание файла конфигурации .my.cnf для mysqld_exporter
+      copy:
+        dest: "{{ prometheus_dir }}/.master.my.cnf"
+        content: |
+          [client]
+          user={{ exporter_user }}
+          password={{ exporter_password }}
+          host=db_master
+
+    - name: Создание файла конфигурации .my.cnf для mysqld_exporter
+      copy:
+        dest: "{{ prometheus_dir }}/.slave.my.cnf"
+        content: |
+          [client]
+          user={{ exporter_user }}
+          password={{ exporter_password }}
+          host=db_slave
+
+    - name: Создание пользователя для MySQL Exporter
+      community.mysql.mysql_user:
+        login_user: root
+        login_password: "{{ db_password }}"
+        login_host: "{{ ansible_host }}"
+        login_port: 3306
+        name: "{{ exporter_user }}"
+        password: "{{ exporter_password }}"
+        host: "%"
+        priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
+        state: present
+
+    - name: Создание файла docker-compose.yml
+      copy:
+        dest: "{{ compose_file_path }}"
+        content: |
+          version: '3'
+          services:
+            prometheus:
+              image: prom/prometheus
+              volumes:
+                - ./prometheus.yml:/etc/prometheus/prometheus.yml
+              ports:
+                - "9090:9090"
+              networks:
+                - local_network
+            mysql_exporter_master:
+              image: prom/mysqld-exporter
+              volumes:
+                - {{ prometheus_dir }}/.master.my.cnf:/etc/.my.cnf:ro
+              command: ["--config.my-cnf=/etc/.my.cnf"]          
+              ports:
+                - "9104:9104"
+              networks:
+                - local_network
+            mysql_exporter_slave:
+              image: prom/mysqld-exporter
+              volumes:
+                - {{ prometheus_dir }}/.slave.my.cnf:/etc/.my.cnf:ro
+              command: ["--config.my-cnf=/etc/.my.cnf"]          
+              ports:
+                - "9105:9104"
+              networks:
+                - local_network
+            grafana:
+              image: grafana/grafana
+              ports:
+                - "3000:3000"
+              depends_on:
+                - prometheus
+              environment:
+                - GF_SECURITY_ADMIN_PASSWORD={{ grafana_password }}
+          networks:
+            local_network:
+              external: true
+
+    - name: Запуск Prometheus с помощью Docker Compose
+      command: docker-compose up -d
+      args:
+        chdir: "{{ prometheus_dir }}"
