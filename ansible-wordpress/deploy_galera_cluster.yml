@@ -1,0 +1,122 @@
+---
+- name: Развертывание Prometheus через Docker Compose
+  hosts: prometheus_servers
+  become: yes
+  vars:
+    db_user: "wordpress"
+    db_password: "wordpress"
+    galera_cluster_name: "galera_cluster"
+    backup_password: "galera_password"
+    exporter_user: "exporter"
+    exporter_password: "exporter"
+    grafana_password: "grafana"
+    compose_file_path: "/home/{{ ansible_ssh_user }}/galera_cluster/docker-compose.yml"
+    galera_dir: "/home/{{ ansible_ssh_user }}/galera_cluster"
+  tasks:
+    - name: Проверка, что Docker запущен
+      service:
+        name: docker
+        state: started
+
+    - name: Создание директории для Galera Cluster
+      file:
+        path: "{{ galera_dir }}"
+        state: directory
+    - name: Создание файла docker-compose.yml
+      copy:
+        dest: "{{ compose_file_path }}"
+        content: |
+          version: '3'
+          services:
+            galera-node1:
+              image: rancher/galera:10.0.22-rancher2
+              environment:
+                MYSQL_ROOT_PASSWORD: {{ db_password }}
+                MYSQL_DATABASE: wordpress
+                MYSQL_USER: {{ db_user }}
+                MYSQL_PASSWORD: {{ db_password }}
+                CLUSTER_NAME: {{ galera_cluster_name }}
+                XTRABACKUP_PASSWORD: {{ backup_password }}
+                WSREP_NODE_NAME: galera-node1
+                WSREP_NODE_ADDRESS: galera-node1
+                WSREP_CLUSTER_ADDRESS: "gcomm://galera-node1,galera-node2,galera-node3,galera-node4,galera-node5"
+              ports:
+                - "3310:3306"
+              networks:
+                - local_network
+          
+            galera-node2:
+              image: rancher/galera:10.0.22-rancher2
+              environment:
+                MYSQL_ROOT_PASSWORD: {{ db_password }}
+                MYSQL_DATABASE: wordpress
+                MYSQL_USER: {{ db_user }}
+                MYSQL_PASSWORD: {{ db_password }}
+                CLUSTER_NAME: {{ galera_cluster_name }}
+                XTRABACKUP_PASSWORD: {{ backup_password }}
+                WSREP_NODE_NAME: galera-node2
+                WSREP_NODE_ADDRESS: galera-node2
+                WSREP_CLUSTER_ADDRESS: "gcomm://galera-node1,galera-node2,galera-node3,galera-node4,galera-node5"
+              ports:
+                - "3311:3306"
+              networks:
+                - local_network
+          
+            galera-node3:
+              image: rancher/galera:10.0.22-rancher2
+              environment:
+                MYSQL_ROOT_PASSWORD: {{ db_password }}
+                MYSQL_DATABASE: wordpress
+                MYSQL_USER: {{ db_user }}
+                MYSQL_PASSWORD: {{ db_password }}
+                CLUSTER_NAME: {{ galera_cluster_name }}
+                XTRABACKUP_PASSWORD: {{ backup_password }}
+                WSREP_NODE_NAME: galera-node3
+                WSREP_NODE_ADDRESS: galera-node3
+                WSREP_CLUSTER_ADDRESS: "gcomm://galera-node1,galera-node2,galera-node3,galera-node4,galera-node5"
+              ports:
+                - "3312:3306"
+              networks:
+                - local_network
+          
+            galera-node4:
+              image: rancher/galera:10.0.22-rancher2
+              environment:
+                MYSQL_ROOT_PASSWORD: {{ db_password }}
+                MYSQL_DATABASE: wordpress
+                MYSQL_USER: {{ db_user }}
+                MYSQL_PASSWORD: {{ db_password }}
+                CLUSTER_NAME: {{ galera_cluster_name }}
+                XTRABACKUP_PASSWORD: {{ backup_password }}
+                WSREP_NODE_NAME: galera-node4
+                WSREP_NODE_ADDRESS: galera-node4
+                WSREP_CLUSTER_ADDRESS: "gcomm://galera-node1,galera-node2,galera-node3,galera-node4,galera-node5"
+              ports:
+                - "3313:3306"
+              networks:
+                - local_network     
+          
+            galera-node5:
+              image: rancher/galera:10.0.22-rancher2
+              environment:
+                MYSQL_ROOT_PASSWORD: {{ db_password }}
+                MYSQL_DATABASE: wordpress
+                MYSQL_USER: {{ db_user }}
+                MYSQL_PASSWORD: {{ db_password }}
+                CLUSTER_NAME: {{ galera_cluster_name }}
+                XTRABACKUP_PASSWORD: {{ backup_password }}
+                WSREP_NODE_NAME: galera-node5
+                WSREP_NODE_ADDRESS: galera-node5
+                WSREP_CLUSTER_ADDRESS: "gcomm://galera-node1,galera-node2,galera-node3,galera-node4,galera-node5"
+              ports:
+                - "3314:3306"
+              networks:
+                - local_network          
+        
+          networks:
+            local_network:
+              driver: bridge
+    - name: Запуск Docker образов
+      community.docker.docker_compose_v2:
+        project_src: "{{ galera_dir }}"
+        files: "{{ compose_file_path }}"
