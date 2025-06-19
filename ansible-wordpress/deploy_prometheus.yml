@@ -62,7 +62,6 @@
       community.mysql.mysql_user:
         login_user: root
         login_password: "{{ db_password }}"
-        login_host: "{{ ansible_host }}"
         login_port: 3306
         name: "{{ exporter_user }}"
         password: "{{ exporter_password }}"
@@ -113,8 +112,7 @@
           networks:
             local_network:
               external: true
-
-    - name: Запуск Prometheus с помощью Docker Compose
-      command: docker-compose up -d
-      args:
-        chdir: "{{ prometheus_dir }}"
+    - name: Запуск Docker образов
+      community.docker.docker_compose_v2:
+        project_src: "{{ prometheus_dir }}"
+        files: "{{ compose_file_path }}"

@@ -15,12 +15,12 @@
    git clone [https://github.com/Margarita2113/IFMO_DistributedComputing_for_DevOps/tree/Lab3]
 - cd ansible-wordpress
 - Заполните файл inventory.ini
-- Для подготовки серверов к инсталяции запустите плейбук deploy_prepare.yml.
+  Для подготовки серверов к инсталяции запустите плейбук deploy_prepare.yml.
   *ansible-playbook -i inventory.ini deploy_prepare.yml*
 - Для инсталяции wordpress используйте плейбук deploy_wordpress.yml
   *ansible-playbook -i inventory.ini deploy_wordpress.yml*
 - Для настройки мониторинга используйте плейбук deploy_prometheus.yml
-  *ansible-playbook -i inventory.ini deploy_prometheus.yml*
+  *ansible-playbook -i inventory.ini deploy_prometheus.yml*-
 
 
 **Описание задач**
