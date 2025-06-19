@@ -69,6 +69,18 @@
         priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
         state: present
 
+    - name: Копирование datasource.yaml
+      copy:
+        src: "files/datasource.yml"
+        dest: "{{ prometheus_dir }}/datasource.yml"
+    - name: Копирование dashboard.json
+      copy:
+        src: "files/dashboard.json"
+        dest: "{{ prometheus_dir }}/dashboard.json"
+    - name: Копирование dashboard.yml
+      copy:
+        src: "files/dashboard.yml"
+        dest: "{{ prometheus_dir }}/dashboard.yml"
     - name: Создание файла docker-compose.yml
       copy:
         dest: "{{ compose_file_path }}"
@@ -109,6 +121,12 @@
                 - prometheus
               environment:
                 - GF_SECURITY_ADMIN_PASSWORD={{ grafana_password }}
+              volumes:
+                - ./datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml 
+                - ./dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json 
+                - ./dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml 
+              networks:
+                - local_network
           networks:
             local_network:
               external: true
