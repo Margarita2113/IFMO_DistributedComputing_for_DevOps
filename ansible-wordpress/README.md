@@ -9,7 +9,7 @@
 - Установить Ansible и необходимые модули.
 - На целевом сервере установленаустановить операционная операционную систему Ubuntu.
 
-**Установка**
+**Установка для лабораторной 3**
 
 - Клонируйте репозиторий на ваш локальный или удаленный сервер, используя следующую команду:
    git clone [https://github.com/Margarita2113/IFMO_DistributedComputing_for_DevOps/tree/Lab3]
@@ -18,9 +18,21 @@
   Для подготовки серверов к инсталяции запустите плейбук deploy_prepare.yml.
   *ansible-playbook -i inventory.ini deploy_prepare.yml*
 - Для инсталяции wordpress используйте плейбук deploy_wordpress.yml
-  *ansible-playbook -i inventory.ini deploy_wordpress.yml*
+  *ansible-playbook -i inventory.ini deploy_wordpress_master_slave.yml*
 - Для настройки мониторинга используйте плейбук deploy_prometheus.yml
   *ansible-playbook -i inventory.ini deploy_prometheus.yml*-
+
+**Установка для лабораторной 4**
+- Клонируйте репозиторий на ваш локальный или удаленный сервер, используя следующую команду:
+  git clone [https://github.com/Margarita2113/IFMO_DistributedComputing_for_DevOps/tree/Lab3]
+- cd ansible-wordpress
+- Заполните файл inventory.ini
+  Для подготовки серверов к инсталяции запустите плейбук deploy_prepare.yml.
+  *ansible-playbook -i inventory.ini deploy_prepare.yml*
+- Развертывание отказоустойчивого кластера Galera cluster
+  *ansible-playbook -i inventory.ini deploy_galera_cluster.yml*
+- Для инсталяции wordpress используйте плейбук deploy_wordpress_galera.yml
+  *ansible-playbook -i inventory.ini deploy_wordpress_galera.yml*-
 
 
 **Описание задач**
