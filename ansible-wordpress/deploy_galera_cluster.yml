@@ -1,6 +1,6 @@
 ---
 - name: Развертывание Prometheus через Docker Compose
-  hosts: prometheus_servers
+  hosts: galera_cluster
   become: yes
   vars:
     db_user: "wordpress"
@@ -22,6 +22,11 @@
       file:
         path: "{{ galera_dir }}"
         state: directory
+    - name: Копирование haproxy.cfg
+      copy:
+        src: "config/haproxy.cfg"
+        dest: "{{ galera_dir }}/haproxy.cfg"
+
     - name: Создание файла docker-compose.yml
       copy:
         dest: "{{ compose_file_path }}"
@@ -111,11 +116,24 @@
               ports:
                 - "3314:3306"
               networks:
-                - local_network          
-        
+                - local_network      
+            haproxy:
+              image: haproxy:latest
+              container_name: haproxy
+              ports:
+                - "14333:14333" # frontend
+                - "13333:13333" # statistic 
+              volumes:
+                - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+                - haproxy:/usr/local/etc/haproxy
+              networks:
+                - local_network   
+
           networks:
             local_network:
               driver: bridge
+          volumes:
+            haproxy:
     - name: Запуск Docker образов
       community.docker.docker_compose_v2:
         project_src: "{{ galera_dir }}"
