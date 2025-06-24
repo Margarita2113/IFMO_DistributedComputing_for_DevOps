@@ -12,6 +12,7 @@
     grafana_password: "grafana"
     compose_file_path: "/home/{{ ansible_ssh_user }}/galera_cluster/docker-compose.yml"
     galera_dir: "/home/{{ ansible_ssh_user }}/galera_cluster"
+    compose_dir_lab2: "/home/{{ ansible_ssh_user }}/wordpress/"
   tasks:
     - name: Проверка, что Docker запущен
       service:
@@ -31,52 +32,41 @@
         dest: "{{ galera_dir }}/.node1.my.cnf"
         content: |
           [client]
-          user={{ exporter_user }}
-          password={{ exporter_password }}
+          user={{ db_user }}
+          password={{ db_password }}
           host=galera-node1
     - name: Создание файла конфигурации .my.cnf для mysqld_exporter_node2
       copy:
         dest: "{{ galera_dir }}/.node2.my.cnf"
         content: |
           [client]
-          user={{ exporter_user }}
-          password={{ exporter_password }}
+          user={{ db_user }}
+          password={{ db_password }}
           host=galera-node2
     - name: Создание файла конфигурации .my.cnf для mysqld_exporter_node3
       copy:
         dest: "{{ galera_dir }}/.node3.my.cnf"
         content: |
           [client]
-          user={{ exporter_user }}
-          password={{ exporter_password }}
+          user={{ db_user }}
+          password={{ db_password }}
           host=galera-node3
     - name: Создание файла конфигурации .my.cnf для mysqld_exporter_node4
       copy:
         dest: "{{ galera_dir }}/.node4.my.cnf"
         content: |
           [client]
-          user={{ exporter_user }}
-          password={{ exporter_password }}
+          user={{ db_user }}
+          password={{ db_password }}
           host=galera-node4
     - name: Создание файла конфигурации .my.cnf для mysqld_exporter_node5
       copy:
         dest: "{{ galera_dir }}/.node5.my.cnf"
         content: |
           [client]
-          user={{ exporter_user }}
-          password={{ exporter_password }}
+          user={{ db_user }}
+          password={{ db_password }}
           host=galera-node5
-
-    - name: Создание пользователя для MySQL Exporter
-      community.mysql.mysql_user:
-        login_user: root
-        login_password: "{{ db_password }}"
-        login_port: 14333
-        name: "{{ exporter_user }}"
-        password: "{{ exporter_password }}"
-        host: "%"
-        priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
-        state: present
 
     - name: Копирование datasource.yaml
       copy:
@@ -99,7 +89,7 @@
           scrape_configs:
             - job_name: 'prometheus'
               static_configs:
-                - targets: ['localhost:9090']
+                - targets: ['localhost:9090']        
             - job_name: 'mysql_node1'
               static_configs:
                 - targets: ['mysql_exporter_node1:9104']
@@ -302,18 +292,60 @@
           networks:
             local_network:
               external: true
-    - name: Создание пользователя для MySQL Exporter
-      community.mysql.mysql_user:
-        login_user: root
-        login_password: "{{ db_password }}"
-        login_port: 14333
-        name: "{{ exporter_user }}"
-        password: "{{ exporter_password }}"
-        host: "%"
-        priv: "*.*:PROCESS,REPLICATION CLIENT,SELECT"
-        state: present
 
-    - name: Запуск Docker образов
+    - name: Запуск MySQL services
       community.docker.docker_compose_v2:
         project_src: "{{ galera_dir }}"
-        files: "{{ compose_file_path }}"
+        services:
+          - galera-node1
+          - galera-node2
+          - galera-node3
+          - galera-node4
+          - galera-node5
+          - haproxy
+
+
+    - name: Wait for MySQL slave to be ready
+      wait_for:
+        port: 14333
+        delay: 10
+        timeout: 60
+
+    - name: Создать dump базы данных
+      community.mysql.mysql_db:
+        state: dump
+        name: "wordpress"
+        target: "{{ galera_dir }}/dump.sql"
+        login_host: "127.0.0.1"
+        login_port: 3306
+        login_user: root
+        login_password: "{{ db_password }}"
+    - name: Выполнить dump на кластере
+      community.mysql.mysql_db:
+        state: import
+        name: "wordpress"
+        target: "{{ galera_dir }}/dump.sql"
+        login_host: "127.0.0.1"
+        login_port: 14333
+        login_user: root
+        login_password: "{{ db_password }}"
+
+    - name: Останока сервисов из лаб2
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_dir_lab2 }}"
+        state: absent
+
+    - name: Запуск сервисов мониторинга
+      community.docker.docker_compose_v2:
+        project_src: "{{ galera_dir }}"
+        services:
+          - mysql_exporter_node1
+          - mysql_exporter_node2
+          - mysql_exporter_node3
+          - mysql_exporter_node4
+          - mysql_exporter_node5
+          - prometheus
+          - grafana
+          - wordpress
+
+

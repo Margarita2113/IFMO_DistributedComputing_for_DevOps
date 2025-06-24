@@ -83,17 +83,23 @@
           - db_master
           - db_slave
       
-    - name: Wait for MySQL master to be ready
-      wait_for:
-        port: 3306
-        delay: 10
-        timeout: 60
+    - name: Проверка доступности MySQL
+      community.mysql.mysql_info:
+        login_port: 3306
+        login_user: root
+        login_password: "{{ db_password }}"
+      register: mysql_check
+      retries: 30
+      delay: 3
+    - name: Проверка доступности MySQL
+      community.mysql.mysql_info:
+        login_port: 3307
+        login_user: root
+        login_password: "{{ db_password }}"
+      register: mysql_check
+      retries: 30
+      delay: 3
 
-    - name: Wait for MySQL slave to be ready
-      wait_for:
-        port: 3307
-        delay: 10
-        timeout: 60
 
     - name: Create replication user on Master
       mysql_query:
